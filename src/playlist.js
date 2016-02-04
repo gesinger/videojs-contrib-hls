@@ -18,7 +18,7 @@ const backwardDuration = function(playlist, endSequence) {
     }
     if (typeof segment.end !== 'undefined') {
       return {
-        result: segment.end - segment.duration,
+        result: segment.end - segment.duration < 0 ? 0 : segment.end - segment.duration,
         precise: true
       };
     }
@@ -292,11 +292,14 @@ export const getMediaIndexForTime_ = function(playlist, time, expired) {
     }
 
     // We haven't found a segment so load the first one if time is zero
-    if (time === 0) {
+    // Time is rounded to account for slightly imprecise duration values and floating
+    // point precision
+    if (Math.round(time) === 0) {
       return 0;
     }
     return -1;
   }
+
   // We known nothing so walk from the front of the playlist,
   // subtracting durations until we find a segment that contains
   // time and return it
