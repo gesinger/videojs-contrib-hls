@@ -2,6 +2,7 @@ import PlaylistLoader from './playlist-loader';
 import SegmentLoader from './segment-loader';
 import Ranges from './ranges';
 import videojs from 'video.js';
+import {AudioTrack} from 'video.js';
 
 // 5 minute blacklist
 const BLACKLIST_DURATION = 5 * 60 * 1000;
@@ -207,6 +208,7 @@ export default class MasterPlaylistController extends videojs.EventTarget {
     this.hlsHandler.mediaSource = this.mediaSource;
     this.hlsHandler.selectPlaylist = this.hlsHandler.selectPlaylist || selectPlaylist;
 
+    this.url = url;
     if (!url) {
       throw new Error('A non-empty playlist URL is required');
     }
@@ -227,12 +229,14 @@ export default class MasterPlaylistController extends videojs.EventTarget {
         this.mainSegmentLoader_.load();
       }
 
+      this.baseurl = this.url.replace('playlist.m3u8', '');
+
       this.audioPlaylistLoaders_ = [];
       if (master.mediaGroups && master.mediaGroups.AUDIO) {
         for (let groupKey in master.mediaGroups.AUDIO) {
           for (let labelKey in master.mediaGroups.AUDIO[groupKey]) {
             this.audioPlaylistLoaders_.push(new PlaylistLoader(
-              master.mediaGroups.AUDIO[groupKey][labelKey].uri,
+              this.baseurl + master.mediaGroups.AUDIO[groupKey][labelKey].uri,
               this.withCredentials,
               true));
           }
@@ -248,8 +252,42 @@ export default class MasterPlaylistController extends videojs.EventTarget {
       let seekable;
 
       if (!updatedPlaylist) {
+        let s = this.hlsHandler.selectPlaylist();
+        this.masterPlaylistLoader_.media(s);
+        if(!s.attributes.AUDIO) {
+          this.hlsHandler.tech_.audioTracks().addTrack(new AudioTrack({
+            enabled: true,
+            id: '1',
+            kind: 'main',
+            tech: this.hlsHandler.tech_
+          }));
+          return;
+        }
+        let mgn = s.attributes.AUDIO;
+        let mg = this.masterPlaylistLoader_.master.mediaGroups.AUDIO[mgn];
+
+        for (let key in mg) {
+          let label = key;
+          let language = mg[key].language || '';
+          /* eslint-disable dot-notation */
+          // we need to use non dot notation around defaul for ie8
+          let enabled = mg[key]['default'] || false;
+          /* eslint-enable dot-notation */
+          let kind = 'alternative';
+
+          if (enabled) {
+            kind = 'main';
+          }
+          this.hlsHandler.tech_.audioTracks().addTrack(new AudioTrack({
+            language,
+            enabled,
+            kind,
+            label,
+            tech: this.hlsHandler.tech_
+          }));
+        }
+
         // select the initial variant
-        this.masterPlaylistLoader_.media(this.hlsHandler.selectPlaylist());
         return;
       }
 
@@ -326,7 +364,8 @@ export default class MasterPlaylistController extends videojs.EventTarget {
       this.masterPlaylistLoader_.master.mediaGroups.AUDIO[mediaGroupName][label];
 
     this.audioPlaylistLoaders_.forEach((audioPlaylistLoader) => {
-      if (audioPlaylistLoader.srcUrl === audioEntry.uri) {
+      let u = audioPlaylistLoader.srcUrl.replace(this.baseurl, '');
+      if (u ===  audioEntry.uri) {
         newAudioPlaylistLoader = audioPlaylistLoader;
       }
     });

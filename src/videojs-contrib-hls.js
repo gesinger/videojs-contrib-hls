@@ -104,13 +104,20 @@ export default class HlsHandler extends Component {
 
     this.on(this.tech_, 'play', this.play);
 
-    this.tech_.audioTracks().on('change', () => {
+    this.tech_.audioTracks().addEventListener('change', () => {
+      let t;
       for (let i = 0; i < this.tech_.audioTracks().length; i++) {
-        if (this.tech_.audioTracks()[i].enabled) {
-          return this.masterPlaylistController_.updateAudio(
-            this.tech_.audioTracks()[i].label);
+        let track = this.tech_.audioTracks()[i];
+        if (track.enabled) {
+          t = track;
+          break;
         }
       }
+      if(!t) {
+        // no audio, no bueno
+        return;
+      }
+      this.masterPlaylistController_.useAudio(t.label);
     });
   }
   src(src) {
@@ -126,6 +133,7 @@ export default class HlsHandler extends Component {
       this.options_.withCredentials = videojs.options.hls.withCredentials;
     }
 
+
     this.masterPlaylistController_ = new MasterPlaylistController({
       url: this.source_.src,
       withCredentials: this.options_.withCredentials,
@@ -134,6 +142,8 @@ export default class HlsHandler extends Component {
       hlsHandler: this,
       externHls: Hls
     });
+
+
 
     // do nothing if the tech has been disposed already
     // this can occur if someone sets the src in player.ready(), for instance
