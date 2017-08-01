@@ -27,9 +27,13 @@ module('Playlist Selectors', {
   }
 });
 
-test('Exponential moving average has a configurable decay parameter', function(assert) {
+test('Exponential moving average uses the Config.EWMA_DECAY variable', function(assert) {
   let playlist;
-  const instantAverage = movingAverageBandwidthSelector(1.0);
+  const originalDecay = Config.EWMA_DECAY;
+
+  Config.EWMA_DECAY = 1.0;
+
+  const instantAverage = movingAverageBandwidthSelector();
 
   this.hls.playlists.master.playlists = [
     { attributes: { BANDWIDTH: 1 } },
@@ -44,7 +48,8 @@ test('Exponential moving average has a configurable decay parameter', function(a
   playlist = instantAverage.call(this.hls);
   assert.equal(playlist.attributes.BANDWIDTH, 100, 'selected the top playlist');
 
-  const fiftyPercentDecay = movingAverageBandwidthSelector(0.5);
+  Config.EWMA_DECAY = 0.5;
+  const fiftyPercentDecay = movingAverageBandwidthSelector();
 
   this.hls.systemBandwidth = 100 * Config.BANDWIDTH_VARIANCE + 1;
   playlist = fiftyPercentDecay.call(this.hls);
@@ -59,6 +64,8 @@ test('Exponential moving average has a configurable decay parameter', function(a
   this.hls.systemBandwidth = 1;
   playlist = fiftyPercentDecay.call(this.hls);
   assert.equal(playlist.attributes.BANDWIDTH, 50, 'selected the middle playlist');
+
+  Config.EWMA_DECAY = originalDecay;
 });
 
 test('minRebufferMaxBandwidthSelector picks highest rendition without rebuffering',
