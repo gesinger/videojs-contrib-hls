@@ -1,5 +1,5 @@
 import { EventTarget } from 'video.js';
-import mpdParser from '../mpd-parser';
+import mpdParser from 'mpd-parser';
 import {
   setupMediaPlaylists,
   resolveMediaGroupUris
@@ -131,7 +131,7 @@ export default class DashPlaylistLoader extends EventTarget {
         return this.trigger('error');
       }
 
-      this.master = new mpdParser.parse(req.responseText);
+      this.master = new mpdParser.parse(req.responseText, this.srcUrl);
       this.master.uri = this.srcUrl;
 
       this.state = 'HAVE_MASTER';
